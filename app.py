@@ -80,8 +80,8 @@ if st.button("Run Sentinel Scan"):
         # Predicts
         probs = sentinel_rnn.predict(padded, verbose=0)[0]
         best_index = np.argmax(probs)
-        verdict = le.classes_[best_index]  
-        confidence = probs[best_index]    
+        verdict = le.classes_[best_index]
+        neg_prob = probs[0] 
         
 
         # Display Results
@@ -107,10 +107,17 @@ if st.button("Run Sentinel Scan"):
     else:
         st.warning("Please enter a comment to analyze.")
 
-
-if st.button("🗑️ Clear comment"):
-    st.rerun()
-
 # --- 5. FOOTER ---
 st.divider()
-st.caption("Developed by the Brand Sentinel Team | Bidirectional RNN Architecture | 81% Recall Target Achieved")
+
+# Creating two columns so the buttons look neat side-by-side
+col1, col2 = st.columns([1,1])
+
+with col1:
+    st.caption("Developed by the Brand Sentinel Team")
+    st.caption("81% Recall Target Achieved")
+
+with col2:
+    # This button will now ALWAYS be visible at the bottom right
+    if st.button("🗑️ Clear & Reset"):
+        st.rerun()
