@@ -86,24 +86,29 @@ if st.button("Run Sentinel Scan"):
         # Display Results
         st.subheader("Analysis Results")
         
-        # Determine Alert Level
-        if neg_prob > 0.35:
+        # We check the actual WORD the model chose
+        if verdict == "Negative":
             st.error(f"### 🚨 BRAND ALERT: {verdict}")
-            st.progress(float(neg_prob))
-            st.write(f"**Negative Risk Level:** {neg_prob:.1%}")
-            st.warning("Action Required: Direct this to the Crisis Response Team immediately.")
-        elif neg_prob > 0.20:
-            st.warning(f"### ⚠️ WATCH: {verdict}")
-            st.progress(float(neg_prob))
-            st.write(f"**Negative Risk Level:** {neg_prob:.1%}")
-            st.info("Recommendation: Monitor this thread for potential sarcasm or escalation.")
-        else:
+            st.progress(float(neg_prob)) 
+            st.write(f"**Confidence Level:** {probs[best_index]:.1%}")
+            st.warning("Action Required: Direct to Crisis Response Team immediately.")
+            
+        elif verdict == "Neutral":
+            st.info(f"### ℹ️ NEUTRAL: {verdict}")
+            st.write(f"**Confidence Level:** {probs[best_index]:.1%}")
+            st.write("No immediate action required.")
+            
+        else: 
             st.success(f"### ✅ CLEAR: {verdict}")
-            st.write(f"**Negative Risk Level:** {neg_prob:.1%}")
+            st.write(f"**Confidence Level:** {probs[best_index]:.1%}")
             st.balloons()
 
     else:
-        st.sidebar.warning("Please enter a comment to analyze.")
+        st.warning("Please enter a comment to analyze.")
+
+
+if st.button("🗑️ Clear Analysis"):
+    st.rerun()
 
 # --- 5. FOOTER ---
 st.divider()
