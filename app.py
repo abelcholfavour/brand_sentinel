@@ -80,8 +80,9 @@ if st.button("Run Sentinel Scan"):
         # Predicts
         probs = sentinel_rnn.predict(padded, verbose=0)[0]
         best_index = np.argmax(probs)
-        verdict = le.classes_[best_index]
-        neg_prob = probs[0] 
+        verdict = le.classes_[best_index]  
+        confidence = probs[best_index]    
+        
 
         # Display Results
         st.subheader("Analysis Results")
@@ -107,7 +108,7 @@ if st.button("Run Sentinel Scan"):
         st.warning("Please enter a comment to analyze.")
 
 
-if st.button("🗑️ Clear Analysis"):
+if st.button("🗑️ Clear comment"):
     st.rerun()
 
 # --- 5. FOOTER ---
