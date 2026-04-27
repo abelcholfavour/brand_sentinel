@@ -2,96 +2,148 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+import html
 import pickle
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
-# 1. PAGE SETTINGS
-st.set_page_config(page_title="Brand Sentinel", page_icon="🛡️")
+#page
+st.set_page_config(
+    page_title="Brand Sentinel | Crisis Monitor",
+    page_icon="🛡️",
+    layout="centered"
+)
 
-# 2. SESSION STATE (For the Clear Button)
-if 'user_input' not in st.session_state:
-    st.session_state.user_input = ""
+# universal cleaner
+@st.cache_resource
+def setup_resources():
+    nltk.download('stopwords', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    nltk.download('omw-1.4', quiet=True)
+    stop_words = set(stopwords.words('english'))
+    lemmatizer = WordNetLemmatizer()
+    return stop_words, lemmatizer
 
-def clear_text():
-    st.session_state.user_input = ""
-    if 'input_widget' in st.session_state:
-        st.session_state['input_widget'] = ""
+stop_words, lemmatizer = setup_resources()
 
-# 3. CLEANER (Exactly as in your notebook)
-def master_sentinel_cleaner(text):
-    if not isinstance(text, str): return ""
-    text = text.lower()
-    emoji_map = {
-        '❤️': ' love ', '😍': ' love ', '🙂': ' happy ', '😊': ' happy ',
-        '🙁': ' sad ', '😢': ' sad ', '😡': ' angry ', '🙄':' mad ','🔥': ' awesome ',
-        '🔋': ' battery ', '📱': ' phone ', '💀': ' dead ', '👎': ' bad ', '👍': ' good '
-    }
-    for emoji, word in emoji_map.items():
-        text = text.replace(emoji, word)
-    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
+def universal_purity_pipeline(text):
+    text = html.unescape(str(text))
+    text = re.sub(r'^RT\s+@\w+:\s*', '', text)
+    text = re.sub(r'http\S+|www\S+', '', text)
     text = re.sub(r'@\w+', '', text)
-    text = re.sub(r'#', '', text)
-    text = re.sub(r'[^\w\s]', '', text)
-    text = re.sub(r'\d+', '', text)
+    text = text.lower()
+    
     text = re.sub(r"can't", "cannot", text)
     text = re.sub(r"won't", "will not", text)
-    text = re.sub(r'\brt\b', '', text)
-    text = text.strip()
-    text = re.sub(r'\s+', ' ', text)
-    return text
+    text = re.sub(r"n't", " not", text)
+    text = re.sub(r"'s", " is", text)
+    
+    slang_map = {"u ": "you ", " r ": " are ", "gr8": "great", "lol": "laughing", "2": "to"}
+    for slang, formal in slang_map.items():
+        text = text.replace(slang, formal)
+    
+    emoji_map = {
+        '😡': ' angry ', '😊': ' happy ', '😒': ' annoyed ', '📱': ' phone ', 
+        '🔋': ' battery ', '❤️': ' love ', '😍': ' love ', '🔥': ' awesome ', 
+        '💀': ' dead ', '👎': ' bad ', '👍': ' good '
+    }
+    for emo, word in emoji_map.items():
+        text = text.replace(emo, word)
+    
+    text = re.sub(r'#', '', text)
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    
+    words = [lemmatizer.lemmatize(w) for w in text.split() if w not in stop_words]
+    return " ".join(words).strip()
 
-# 4. LOAD RESOURCES
+# Resources
 @st.cache_resource
-def load_assets():
-    model = tf.keras.models.load_model('sentinel_rnn_model.h5')
-    with open('tokenizer.pkl', 'rb') as f:
-        tok = pickle.load(f)
-    with open('label_encoder.pkl', 'rb') as f:
-        le = pickle.load(f)
-    return model, tok, le
+def load_sentinel_resources():
+    model = tf.keras.models.load_model('sentinel_rnn_model_v3.h5') 
+    with open('tokenizer_v3.pkl', 'rb') as handle:
+        tokenizer = pickle.load(handle)
+    with open('label_encoder_v3.pkl', 'rb') as handle:
+        le = pickle.load(handle)
+    return model, tokenizer, le
 
-model, tokenizer, le = load_assets()
+try:
+    sentinel_rnn, tokenizer, le = load_sentinel_resources()
+    max_sequence_len = 80 
+except Exception as e:
+    st.error("⚠️ v3 Model files missing! Ensure .h5 and .pkl (v3) files are in GitHub.")
+    st.stop()
 
-# 5. INTERFACE
-st.title("🛡️ Brand Sentinel")
-user_text = st.text_area("Enter Comment:", value=st.session_state.user_input, key="input_widget")
+# UI
+try:
+    st.image("logo.png", width=100) 
+except:
+    st.image("https://img.icons8.com/fluency/96/shield-with-crown.png", width=80)
 
-col1, col2 = st.columns(2)
-with col1:
-    run_btn = st.button("🚀 Scan")
-with col2:
-    st.button("🗑️ Clear", on_click=clear_text)
+st.title("Brand Sentinel")
+st.markdown("### *Real-time Crisis Detection & Sentiment Analysis*")
+st.info("Tasked to monitor brand reputation during high-traffic events like SXSW.")
 
-# 6. THE PREDICTION ENGINE
-if run_btn and user_text:
-    # CLEAN
-    cleaned = master_sentinel_cleaner(user_text)
-    
-    # TOKENIZE (Ensuring it matches Notebook exactly)
-    seq = tokenizer.texts_to_sequences([cleaned])
-    padded = pad_sequences(seq, maxlen=80) 
-    
-    # PREDICT
-    probs = model.predict(padded, verbose=0)
-    best_idx = np.argmax(probs, axis=1)[0]
-    verdict = le.classes_[best_idx]
-    
-    # Extract specific Negative Score (Assuming Negative is Index 0 like your notebook code)
-    neg_score = probs[0][0] 
+st.divider()
 
-    # 7. DISPLAY LOGIC (Mirroring your master_sentinel_test)
-    st.divider()
-    
-    # If the score is high OR the verdict is Negative, trigger the alert
-    if neg_score > 0.35 or verdict == "Negative":
-        st.error(f"### 🚩 ACTION: Brand Defense Suggested")
-        st.write(f"**Verdict:** {verdict}")
-        st.write(f"**Negative Risk Score:** {neg_score:.1%}")
-        st.progress(float(neg_score))
+#Input
+user_text = st.text_area(
+    "✍️ Enter Customer Comment/Tweet:", 
+    placeholder="Type here to test sentiment (e.g., 'I am so happy with this new phone')...",
+    height=150
+)
+
+# Buttons
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    run_scan = st.button(" Scan the comment")
+with col_btn2:
+    if st.button("Clear Comment"):
+        st.rerun()
+
+# Our Engine
+if run_scan:
+    if user_text.strip():
+        cleaned_text = universal_purity_pipeline(user_text)
+        seq = tokenizer.texts_to_sequences([cleaned_text])
+        padded = pad_sequences(seq, maxlen=max_sequence_len)
+        
+        probs = sentinel_rnn.predict(padded, verbose=0)[0]
+        classes = list(le.classes_)
+        
+        neg_idx = classes.index('Negative')
+        neg_score = probs[neg_idx]
+        
+        best_idx = np.argmax(probs)
+        verdict = classes[best_idx]
+        confidence = probs[best_idx]
+
+        st.divider()
+        st.subheader("Analysis Results")
+        
+        if neg_score > 0.60:
+            st.error(f"### 🚨 BRAND ALERT: {verdict}")
+            st.progress(float(neg_score))
+            st.write(f"**Negative Risk Score:** {neg_score:.1%}")
+            st.warning("Action Required: Direct to Crisis Response Team immediately.")
+            
+        elif verdict == "Neutral":
+            st.info(f"### ℹ️ NEUTRAL: {verdict}")
+            st.progress(float(confidence))
+            st.write(f"**Confidence:** {confidence:.1%}")
+            
+        else: 
+            st.success(f"### ✅ CLEAR: {verdict}")
+            st.progress(float(confidence))
+            st.write(f"**Confidence:** {confidence:.1%}")
+            if verdict == "Positive":
+                st.balloons()
+
     else:
-        st.success(f"### ✅ STATUS: No immediate crisis detected")
-        st.write(f"**Verdict:** {verdict}")
-        st.write(f"**Negative Risk Score:** {neg_score:.1%}")
-        if verdict == "Positive":
-            st.balloons()
+        st.warning("Please enter a comment first!")
+
+
+st.divider()
+st.caption("Developed by the Brand Sentinel Group Seven| RNN Model")
