@@ -6,24 +6,19 @@ import pickle
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# --- 1. PAGE CONFIGURATION ---
-st.set_page_config(
-    page_title="Brand Sentinel | Crisis Monitor",
-    page_icon="🛡️",
-    layout="centered"
-)
+# 1. PAGE SETTINGS
+st.set_page_config(page_title="Brand Sentinel", page_icon="🛡️")
 
-# --- 2. SESSION STATE FOR CLEAR BUTTON ---
-# This ensures the text box can be wiped clean
+# 2. SESSION STATE (For the Clear Button)
 if 'user_input' not in st.session_state:
     st.session_state.user_input = ""
 
-def clear_text_callback():
+def clear_text():
     st.session_state.user_input = ""
     if 'input_widget' in st.session_state:
         st.session_state['input_widget'] = ""
 
-# --- 3. CLEANING PIPELINE ---
+# 3. CLEANER (Exactly as in your notebook)
 def master_sentinel_cleaner(text):
     if not isinstance(text, str): return ""
     text = text.lower()
@@ -46,96 +41,57 @@ def master_sentinel_cleaner(text):
     text = re.sub(r'\s+', ' ', text)
     return text
 
-# --- 4. RESOURCE LOADING ---
+# 4. LOAD RESOURCES
 @st.cache_resource
-def load_sentinel_resources():
-    # Loading the model and pre-trained assets
-    model = tf.keras.models.load_model('sentinel_rnn_model.h5') 
-    with open('tokenizer.pkl', 'rb') as handle:
-        tokenizer = pickle.load(handle)
-    with open('label_encoder.pkl', 'rb') as handle:
-        le = pickle.load(handle)
-    return model, tokenizer, le
+def load_assets():
+    model = tf.keras.models.load_model('sentinel_rnn_model.h5')
+    with open('tokenizer.pkl', 'rb') as f:
+        tok = pickle.load(f)
+    with open('label_encoder.pkl', 'rb') as f:
+        le = pickle.load(f)
+    return model, tok, le
 
-try:
-    sentinel_rnn, tokenizer, le = load_sentinel_resources()
-    max_sequence_len = 80
-except Exception as e:
-    st.error("⚠️ Model files missing! Ensure .h5 and .pkl files are in GitHub.")
-    st.stop()
+model, tokenizer, le = load_assets()
 
-# --- 5. INTERFACE DESIGN ---
-# Logo logic
-try:
-    st.image("logo.png", width=100) 
-except:
-    st.image("https://img.icons8.com/fluency/96/shield-with-crown.png", width=80)
+# 5. INTERFACE
+st.title("🛡️ Brand Sentinel")
+user_text = st.text_area("Enter Comment:", value=st.session_state.user_input, key="input_widget")
 
-st.title("Brand Sentinel")
-st.markdown("### *Real-time Crisis Detection & Sentiment Analysis*")
-st.caption(f"Engine: TensorFlow {tf.__version__} | RNN Architecture")
-st.info("Monitoring brand reputation for high-traffic events like SXSW.")
-
-st.divider()
-
-# --- 6. INPUT AREA ---
-user_text = st.text_area(
-    "✍️ Enter Customer Comment/Tweet:", 
-    value=st.session_state.user_input,
-    key="input_widget",
-    placeholder="Type a comment to test sentiment..."
-)
-
-# Buttons for interaction
-col1, col2 = st.columns([1,1])
+col1, col2 = st.columns(2)
 with col1:
-    btn_run = st.button("🚀 Run Sentinel Scan", use_container_width=True)
+    run_btn = st.button("🚀 Scan")
 with col2:
-    btn_clear = st.button("🗑️ Clear & Reset", on_click=clear_text_callback, use_container_width=True)
+    st.button("🗑️ Clear", on_click=clear_text)
 
-# --- 7. PREDICTION & RESULTS ---
-if btn_run:
-    if user_text.strip():
-        # Update session state to keep text visible during this specific run
-        st.session_state.user_input = user_text
-        
-        # Clean and Tokenize
-        cleaned = master_sentinel_cleaner(user_text)
-        seq = tokenizer.texts_to_sequences([cleaned])
-        padded = pad_sequences(seq, maxlen=max_sequence_len)
-        
-        # Get raw probabilities from model
-        probs = sentinel_rnn.predict(padded, verbose=0)[0]
-        
-        # Find the highest probability and its corresponding label
-        best_index = np.argmax(probs)
-        verdict = le.classes_[best_index]
-        confidence = probs[best_index]
+# 6. THE PREDICTION ENGINE
+if run_btn and user_text:
+    # CLEAN
+    cleaned = master_sentinel_cleaner(user_text)
+    
+    # TOKENIZE (Ensuring it matches Notebook exactly)
+    seq = tokenizer.texts_to_sequences([cleaned])
+    padded = pad_sequences(seq, maxlen=80) 
+    
+    # PREDICT
+    probs = model.predict(padded, verbose=0)
+    best_idx = np.argmax(probs, axis=1)[0]
+    verdict = le.classes_[best_idx]
+    
+    # Extract specific Negative Score (Assuming Negative is Index 0 like your notebook code)
+    neg_score = probs[0][0] 
 
-        st.subheader("Analysis Results")
-        
-        # Logic is now tied to the 'verdict' word (Positive/Negative/Neutral)
-        if verdict == "Negative":
-            st.error(f"### 🚨 BRAND ALERT: {verdict}")
-            st.write(f"**Confidence Level:** {confidence:.1%}")
-            st.progress(float(confidence))
-            st.warning("Action Required: Direct to Crisis Response Team immediately.")
-            
-        elif verdict == "Positive":
-            st.success(f"### ✅ CLEAR: {verdict}")
-            st.write(f"**Confidence Level:** {confidence:.1%}")
-            st.progress(float(confidence))
-            st.balloons()
-            
-        else: # Neutral
-            st.info(f"### ℹ️ NEUTRAL: {verdict}")
-            st.write(f"**Confidence Level:** {confidence:.1%}")
-            st.progress(float(confidence))
-            st.write("Recommendation: Monitor for escalation.")
-
+    # 7. DISPLAY LOGIC (Mirroring your master_sentinel_test)
+    st.divider()
+    
+    # If the score is high OR the verdict is Negative, trigger the alert
+    if neg_score > 0.35 or verdict == "Negative":
+        st.error(f"### 🚩 ACTION: Brand Defense Suggested")
+        st.write(f"**Verdict:** {verdict}")
+        st.write(f"**Negative Risk Score:** {neg_score:.1%}")
+        st.progress(float(neg_score))
     else:
-        st.warning("Please enter a comment to analyze.")
-
-# --- 8. FOOTER ---
-st.divider()
-st.caption("Developed by the Brand Sentinel Team | 81% Recall Target Achieved")
+        st.success(f"### ✅ STATUS: No immediate crisis detected")
+        st.write(f"**Verdict:** {verdict}")
+        st.write(f"**Negative Risk Score:** {neg_score:.1%}")
+        if verdict == "Positive":
+            st.balloons()
