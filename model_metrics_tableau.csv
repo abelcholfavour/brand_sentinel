@@ -1,4 +1,0 @@
-Model_Stage,Recall_Negative,Accuracy,Caught_Risks_Count,Missed_Risks_Count
-Multinomial Naive Bayes (Baseline),0.58,0.6737,186,135
-Calibrated XGBoost,0.73,0.6185,231,90
-Sentinel (RNN),0.81,0.6034,256,65
