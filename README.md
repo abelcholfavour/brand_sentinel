@@ -13,6 +13,11 @@ Real-time social media sentiment analysis system for brand crisis detection and 
 - [Technical Dictionary](#technical-dictionary)
 - [Team](#team)
 
+## links
+**Tableau**
+
+https://public.tableau.com/views/Brand_sentinel/Story1?:language=en-US&:sid=&:redirect=auth&:display_count=n&:origin=viz_share_link
+
 ## Overview
 
 Brand Sentinel is an intelligent sentiment analysis system designed to protect brand reputation by detecting negative sentiment in social media conversations in real-time. The system is particularly valuable during major tech events (like SXSW) where online reactions can quickly impact brand perception.
