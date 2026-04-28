@@ -10,15 +10,26 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-#page
 st.set_page_config(
     page_title="Brand Sentinel | Crisis Monitor",
     page_icon="🛡️",
     layout="centered"
 )
 
-# universal cleaner
-@st.cache_resource
+# Head
+col_img, col_txt = st.columns([1, 4])
+with col_img:
+    try:
+        
+        st.image("logo.png", width=100) 
+    except:
+       
+        st.image("https://img.icons8.com/fluency/96/shield-with-crown.png", width=80)
+
+with col_txt:
+    st.title("Brand Sentinel")
+    st.markdown("### *Real-time Crisis Detection & Sentiment Analysis*")
+
 def setup_resources():
     nltk.download('stopwords', quiet=True)
     nltk.download('wordnet', quiet=True)
@@ -59,7 +70,6 @@ def universal_purity_pipeline(text):
     words = [lemmatizer.lemmatize(w) for w in text.split() if w not in stop_words]
     return " ".join(words).strip()
 
-# Resources
 @st.cache_resource
 def load_sentinel_resources():
     model = tf.keras.models.load_model('sentinel_rnn_model_v3.h5') 
@@ -76,34 +86,24 @@ except Exception as e:
     st.error("⚠️ v3 Model files missing! Ensure .h5 and .pkl (v3) files are in GitHub.")
     st.stop()
 
-# UI
-try:
-    st.image("logo.png", width=100) 
-except:
-    st.image("https://img.icons8.com/fluency/96/shield-with-crown.png", width=80)
-
-st.title("Brand Sentinel")
-st.markdown("### *Real-time Crisis Detection & Sentiment Analysis*")
+# INPUT AREA
 st.info("Tasked to monitor brand reputation during high-traffic events like SXSW.")
-
 st.divider()
 
-#Input
 user_text = st.text_area(
     "✍️ Enter Customer Comment/Tweet:", 
-    placeholder="Type here to test sentiment (e.g., 'I am so happy with this new phone')...",
+    placeholder="Type here to test sentiment...",
     height=150
 )
 
-# Buttons
 col_btn1, col_btn2 = st.columns([1, 4])
 with col_btn1:
-    run_scan = st.button(" Scan the comment")
+    run_scan = st.button("Scan Comment")
 with col_btn2:
+  
     if st.button("Clear Comment"):
         st.rerun()
 
-# Our Engine
 if run_scan:
     if user_text.strip():
         cleaned_text = universal_purity_pipeline(user_text)
@@ -128,22 +128,18 @@ if run_scan:
             st.progress(float(neg_score))
             st.write(f"**Negative Risk Score:** {neg_score:.1%}")
             st.warning("Action Required: Direct to Crisis Response Team immediately.")
-            
         elif verdict == "Neutral":
             st.info(f"### ℹ️ NEUTRAL: {verdict}")
             st.progress(float(confidence))
             st.write(f"**Confidence:** {confidence:.1%}")
-            
         else: 
             st.success(f"### ✅ CLEAR: {verdict}")
             st.progress(float(confidence))
             st.write(f"**Confidence:** {confidence:.1%}")
             if verdict == "Positive":
                 st.balloons()
-
     else:
         st.warning("Please enter a comment first!")
 
-
 st.divider()
-st.caption("Developed by the Brand Sentinel Group Seven| RNN Model")
+st.caption("Developed by the Brand Sentinel Group Seven | RNN Model")
