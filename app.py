@@ -125,7 +125,7 @@ if run_scan:
         
         best_idx = np.argmax(probs)
         verdict = classes[best_idx]
-st.write(f"DEBUG - Raw Scores: {dict(zip(classes, probs))}")
+        st.write(f"DEBUG - Raw Scores: {dict(zip(classes, probs))}")
         confidence = probs[best_idx]
 
         st.divider()
