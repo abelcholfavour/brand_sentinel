@@ -16,7 +16,6 @@ st.set_page_config(
     layout="centered"
 )
 
-
 @st.cache_resource
 def setup_resources():
     nltk.download('stopwords', quiet=True)
@@ -74,9 +73,9 @@ def universal_purity_pipeline(text):
     words = [lemmatizer.lemmatize(w) for w in text.split() if w not in stop_words]
     return " ".join(words).strip()
 
-#ui
-col_left, col_mid, col_right = st.columns([2, 2, 2])
-with col_mid:
+# This creates a centered image
+col_1, col_2, col_3 = st.columns([1, 1, 1])
+with col_2:
     try:
         st.image("logo.png", width=120) 
     except:
@@ -89,16 +88,14 @@ st.info("Tasked to monitor brand reputation during high-traffic events like SXSW
 st.divider()
 
 
-if "text_input" not in st.session_state:
-    st.session_state.text_input = ""
+if "reset_counter" not in st.session_state:
+    st.session_state.reset_counter = 0
 
-# input
 user_text = st.text_area(
     "✍️ Enter Customer Comment/Tweet:", 
-    value=st.session_state.text_input,
     placeholder="Type here to test sentiment...",
     height=150,
-    key="user_input_widget"
+    key=f"user_input_{st.session_state.reset_counter}"
 )
 
 # Buttons
@@ -108,28 +105,21 @@ with col_btn1:
     run_scan = st.button("Scan Comment")
 
 with col_btn2:
- 
     if st.button("Clear Comment"):
-        st.session_state.text_input = ""
-        st.session_state.user_input_widget = "" 
+
+        st.session_state.reset_counter += 1
         st.rerun()
 
 if run_scan:
-    actual_text = st.session_state.user_input_widget
-    
-    if actual_text.strip():
-       
-        cleaned_text = universal_purity_pipeline(actual_text)
+    if user_text.strip():
+        cleaned_text = universal_purity_pipeline(user_text)
         
-       
         seq = tokenizer.texts_to_sequences([cleaned_text])
         padded = pad_sequences(seq, maxlen=max_sequence_len)
         
-   
         probs = sentinel_rnn.predict(padded, verbose=0)[0]
         classes = list(le.classes_)
-        
-   
+
         neg_idx = classes.index('Negative')
         neg_score = probs[neg_idx]
         
@@ -140,18 +130,15 @@ if run_scan:
         st.divider()
         st.subheader("Analysis Results")
         
-        # Display based on Sentiment
         if neg_score > 0.60:
             st.error(f"### 🚨 BRAND ALERT: {verdict}")
             st.progress(float(neg_score))
             st.write(f"**Negative Risk Score:** {neg_score:.1%}")
             st.warning("Action Required: Direct to Crisis Response Team immediately.")
-            
         elif verdict == "Neutral":
             st.info(f"### ℹ️ NEUTRAL: {verdict}")
             st.progress(float(confidence))
             st.write(f"**Confidence:** {confidence:.1%}")
-            
         else: 
             st.success(f"### ✅ CLEAR: {verdict}")
             st.progress(float(confidence))
@@ -162,4 +149,4 @@ if run_scan:
         st.warning("Please enter a comment first!")
 
 st.divider()
-st.caption("Developed by the Brand Sentinel Group Seven | RNN Model ")
+st.caption("Developed by the Brand Sentinel Group Seven | RNN Model")
